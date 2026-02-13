@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Car, Enquiry, Sale, Testimonial
 from .serializers import CarSerializer, EnquirySerializer, SaleSerializer, TestimonialSerializer
 from rest_framework.decorators import action
@@ -20,6 +21,28 @@ class CarViewSet(viewsets.ModelViewSet):
     queryset = Car.objects.all().order_by('-created_at')
     serializer_class = CarSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def perform_destroy(self, instance):
+        # delete associated image file if exists
+        try:
+            if instance.image:
+                instance.image.delete(save=False)
+        except Exception:
+            pass
+        instance.delete()
+
+    def perform_update(self, serializer):
+        # If updating image, remove old file
+        instance = self.get_object()
+        old_image = instance.image
+        new_image = self.request.FILES.get('image')
+        serializer.save()
+        try:
+            if new_image and old_image and old_image.name != serializer.instance.image.name:
+                old_image.delete(save=False)
+        except Exception:
+            pass
 
 class EnquiryViewSet(viewsets.ModelViewSet):
     queryset = Enquiry.objects.all().order_by('-created_at')

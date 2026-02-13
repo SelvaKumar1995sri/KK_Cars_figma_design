@@ -54,7 +54,7 @@ export default function CarDetails() {
   const loadCarDetails = async (carId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API}/cars`);
+      const response = await fetch(`${API}/cars/`);
       const data = await response.json();
       const foundCar = data.cars?.find((c: CarData) => c.id === carId);
       setCar(foundCar || null);
@@ -176,7 +176,7 @@ export default function CarDetails() {
           <div>
             <div className="relative rounded-xl overflow-hidden mb-4">
               <ImageWithFallback
-                src={car.imageUrl}
+                src={(car as any).image || (car as any).imageUrl}
                 alt={car.name}
                 className="w-full h-[500px] object-cover"
               />

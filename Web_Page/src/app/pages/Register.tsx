@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { register, login, setTokens, getCurrentUser } from "../../app/utils/auth";
+import { register, login, setTokens, getCurrentUser } from "../utils/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -52,6 +52,9 @@ export default function Register() {
       if (result?.access) {
         setTokens(result.access, result.refresh);
         toast.success('Account created successfully!');
+        // fetch current user and notify app so header updates without reload
+        const current = await getCurrentUser();
+        try { window.dispatchEvent(new CustomEvent('authChanged', { detail: current })); } catch (_) {}
         const redirectTo = (location.state as any)?.redirectTo || '/';
         navigate(redirectTo);
       }
@@ -74,8 +77,11 @@ export default function Register() {
       } else if (tokenResult?.access) {
         setTokens(tokenResult.access, tokenResult.refresh);
         toast.success('Signed in successfully!');
-        const redirectTo = (location.state as any)?.redirectTo || '/';
-        navigate(redirectTo);
+          // fetch current user and notify app so header updates without reload
+          const current = await getCurrentUser();
+          try { window.dispatchEvent(new CustomEvent('authChanged', { detail: current })); } catch (_) {}
+          const redirectTo = (location.state as any)?.redirectTo || '/';
+          navigate(redirectTo);
       } else {
         toast.error('Failed to sign in');
       }

@@ -14,6 +14,7 @@ class Car(models.Model):
     description = models.TextField(blank=True)
     transmission = models.CharField(max_length=50, blank=True)
     color = models.CharField(max_length=50, blank=True)
+    image = models.ImageField(upload_to='cars/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

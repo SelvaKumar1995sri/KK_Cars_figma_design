@@ -4,8 +4,12 @@ import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { Car, Gauge, Fuel, Calendar, Star, ArrowRight, Shield, Award, TrendingUp } from "lucide-react";
+import { Car, Gauge, Fuel, Calendar, Star, ArrowRight, Shield, Award, TrendingUp, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { motion } from "motion/react";
 
 
@@ -36,15 +40,56 @@ export default function Home() {
   const [cars, setCars] = useState<CarData[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const navigate = useNavigate();
+  const [isAdminLocal, setIsAdminLocal] = useState(false);
+  const [newCarOpen, setNewCarOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [editCarOpen, setEditCarOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editingCar, setEditingCar] = useState<any | null>(null);
+  const [newCar, setNewCar] = useState({
+    name: "",
+    brand: "",
+    model: "",
+    year: new Date().getFullYear(),
+    price: 0,
+    mileage: "",
+    fuelType: "Petrol",
+    imageFile: null as File | null,
+    condition: "Used",
+  });
 
   useEffect(() => {
     loadCars();
     loadTestimonials();
+    // check admin status for showing admin controls
+    (async () => {
+      const token = localStorage.getItem('access_token');
+      console.debug('[Home] access_token present:', !!token);
+      if (!token) return;
+      try {
+        console.debug('[Home] calling check-admin/');
+        const res = await fetch(`${API}/check-admin/`, { headers: { Authorization: `Bearer ${token}` } });
+        console.debug('[Home] check-admin status', res.status);
+        if (res.ok) {
+          const d = await res.json();
+          console.debug('[Home] check-admin response', d);
+          setIsAdminLocal(!!d.isAdmin);
+        } else {
+          try { const text = await res.text(); console.debug('[Home] check-admin body', text); } catch(_){}
+        }
+      } catch (err) {
+        console.error('Error checking admin status', err);
+      }
+    })();
+
+    const onAdminChanged = (e: any) => setIsAdminLocal(!!e.detail);
+    window.addEventListener('adminChanged', onAdminChanged as EventListener);
+    return () => window.removeEventListener('adminChanged', onAdminChanged as EventListener);
   }, []);
 
   const loadCars = async () => {
     try {
-      const response = await fetch(`${API}/cars`);
+      const response = await fetch(`${API}/cars/`);
       const data = await response.json();
       setCars(data || []);
     } catch (error) {
@@ -59,6 +104,122 @@ export default function Home() {
       setTestimonials(data || []);
     } catch (error) {
       console.error("Error loading testimonials:", error);
+    }
+  };
+
+  const handleAddCar = async () => {
+    setAdding(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Please sign in as admin to add cars');
+        setAdding(false);
+        return;
+      }
+
+      const form = new FormData();
+      form.append('name', newCar.name);
+      form.append('brand', newCar.brand);
+      form.append('model', newCar.model);
+      form.append('year', String(newCar.year));
+      form.append('price', String(newCar.price));
+      form.append('mileage', newCar.mileage || '');
+      form.append('fuel_type', newCar.fuelType || '');
+      form.append('condition', newCar.condition || 'Used');
+      if (newCar.imageFile) form.append('image', newCar.imageFile);
+
+      const response = await fetch(`${API}/cars/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      if (response.ok) {
+        toast.success('Car added successfully');
+        setNewCar({ name: '', brand: '', model: '', year: new Date().getFullYear(), price: 0, mileage: '', fuelType: 'Petrol', imageFile: null, condition: 'Used' });
+        setNewCarOpen(false);
+        await loadCars();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Failed to add car');
+      }
+    } catch (err) {
+      console.error('Error adding car', err);
+      toast.error('Failed to add car');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDeleteCar = async (carId: string) => {
+    if (!confirm('Are you sure you want to delete this car?')) return;
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        toast.error('Please sign in as admin to delete cars');
+        return;
+      }
+      const res = await fetch(`${API}/cars/${carId}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        toast.success('Car deleted');
+        await loadCars();
+      } else {
+        toast.error('Failed to delete car');
+      }
+    } catch (err) {
+      console.error('Error deleting car', err);
+      toast.error('Failed to delete car');
+    }
+  };
+
+  const openEditDialog = (car: any) => {
+    setEditingCar({ ...car });
+    setEditCarOpen(true);
+  };
+
+  const handleEditCar = async () => {
+    if (!editingCar) return;
+    setEditing(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) { toast.error('Please sign in as admin to edit cars'); setEditing(false); return; }
+      let res;
+      if (editingCar.imageFile) {
+        const form = new FormData();
+        form.append('name', editingCar.name || '');
+        form.append('brand', editingCar.brand || '');
+        form.append('model', editingCar.model || '');
+        form.append('year', String(editingCar.year || ''));
+        form.append('price', String(editingCar.price || 0));
+        form.append('mileage', editingCar.mileage || '');
+        form.append('fuel_type', editingCar.fuelType || '');
+        form.append('condition', editingCar.condition || 'Used');
+        form.append('image', editingCar.imageFile);
+        res = await fetch(`${API}/cars/${editingCar.id}/`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+      } else {
+        res = await fetch(`${API}/cars/${editingCar.id}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(editingCar),
+        });
+      }
+      if (res.ok) {
+        toast.success('Car updated');
+        setEditCarOpen(false);
+        setEditingCar(null);
+        await loadCars();
+      } else {
+        toast.error('Failed to update car');
+      }
+    } catch (err) {
+      console.error('Error editing car', err);
+      toast.error('Failed to update car');
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -180,11 +341,103 @@ export default function Home() {
             </p>
           </motion.div>
 
+          {isAdminLocal && (
+            <div className="flex justify-end mb-6">
+              <Dialog open={newCarOpen} onOpenChange={setNewCarOpen}>
+                <DialogTrigger asChild>
+                  {/* <Button className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                    Add Car
+                  </Button> */}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Car</DialogTitle>
+                    <DialogDescription>Fill in the vehicle details</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-2">
+                    <Label>Name</Label>
+                    <Input value={newCar.name} onChange={(e) => setNewCar({ ...newCar, name: e.target.value })} />
+
+                    <Label>Brand</Label>
+                    <Input value={newCar.brand} onChange={(e) => setNewCar({ ...newCar, brand: e.target.value })} />
+
+                    <Label>Model</Label>
+                    <Input value={newCar.model} onChange={(e) => setNewCar({ ...newCar, model: e.target.value })} />
+
+                    <Label>Year</Label>
+                    <Input type="number" value={newCar.year} onChange={(e) => setNewCar({ ...newCar, year: Number(e.target.value) })} />
+
+                    <Label>Price</Label>
+                    <Input type="number" value={newCar.price} onChange={(e) => setNewCar({ ...newCar, price: Number(e.target.value) })} />
+
+                    <Label>Image (upload)</Label>
+                    <input type="file" accept="image/*" onChange={(e) => setNewCar({ ...newCar, imageFile: e.target.files ? e.target.files[0] : null })} />
+
+                    <div className="flex gap-2 mt-4">
+                      <Button onClick={handleAddCar} disabled={adding} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                        {adding ? 'Adding...' : 'Add Car'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setNewCarOpen(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+
+          {isAdminLocal && editingCar && (
+            <Dialog open={editCarOpen} onOpenChange={setEditCarOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Car</DialogTitle>
+                  <DialogDescription>Update vehicle details</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2">
+                  <Label>Name</Label>
+                  <Input value={editingCar?.name || ''} onChange={(e) => setEditingCar({ ...editingCar, name: e.target.value })} />
+
+                  <Label>Brand</Label>
+                  <Input value={editingCar?.brand || ''} onChange={(e) => setEditingCar({ ...editingCar, brand: e.target.value })} />
+
+                  <Label>Model</Label>
+                  <Input value={editingCar?.model || ''} onChange={(e) => setEditingCar({ ...editingCar, model: e.target.value })} />
+
+                  <Label>Year</Label>
+                  <Input type="number" value={editingCar?.year || ''} onChange={(e) => setEditingCar({ ...editingCar, year: Number(e.target.value) })} />
+
+                  <Label>Price</Label>
+                  <Input type="number" value={editingCar?.price || 0} onChange={(e) => setEditingCar({ ...editingCar, price: Number(e.target.value) })} />
+
+                  <Label>Image (upload to replace)</Label>
+                  <input type="file" accept="image/*" onChange={(e) => setEditingCar({ ...editingCar, imageFile: e.target.files ? e.target.files[0] : null })} />
+
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={handleEditCar} disabled={editing} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                      {editing ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setEditCarOpen(false); setEditingCar(null); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {cars.length === 0 ? (
             <div className="text-center py-20">
               <Car className="h-16 w-16 text-gray-600 mx-auto mb-4" />
               <h3 className="text-2xl font-semibold text-white mb-2">No Vehicles Available</h3>
               <p className="text-gray-400">Check back soon for new arrivals!</p>
+                {isAdminLocal && (
+                  <div className="mt-6">
+                    <Button onClick={() => navigate('/admin')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                      Add Car
+                    </Button>
+                  </div>
+                )}
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -199,7 +452,7 @@ export default function Home() {
                   <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-600/50 transition-all duration-300 overflow-hidden group cursor-pointer">
                     <div className="relative h-56 overflow-hidden">
                       <ImageWithFallback
-                        src={car.imageUrl}
+                        src={(car as any).image || (car as any).imageUrl}
                         alt={car.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
@@ -235,13 +488,34 @@ export default function Home() {
                       </div>
                     </CardContent>
                     <CardFooter>
-                      <Button
-                        onClick={() => navigate(`/car/${car.id}`)}
-                        className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
-                      >
-                        View Details
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
+                      <div className="w-full flex gap-2">
+                        <Button
+                          onClick={() => navigate(`/car/${car.id}`)}
+                          className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                        >
+                          View Details
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        {isAdminLocal && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => openEditDialog(car)}
+                              variant="outline"
+                              className="border-yellow-600 text-yellow-400 hover:bg-yellow-600 hover:text-white"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteCar(car.id)}
+                              variant="outline"
+                              className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </CardFooter>
                   </Card>
                 </motion.div>

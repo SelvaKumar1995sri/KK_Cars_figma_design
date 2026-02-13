@@ -24,8 +24,10 @@ export default function Root() {
         if (res.ok) {
           const user = await res.json();
           setUser(user);
-          setShowAdminSetup(true);
-          await checkAdminStatus(token);
+          const isAdminNow = await checkAdminStatus(token);
+          // Show admin setup only for non-admin users so admins don't see the quick setup
+          setShowAdminSetup(!isAdminNow);
+          try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: isAdminNow })); } catch (_) {}
         }
       } catch (err) {
         console.error('Error fetching current user', err);
@@ -33,21 +35,55 @@ export default function Root() {
     })();
   }, []);
 
+  // Listen for auth changes (login/logout) from other components
+  useEffect(() => {
+    const onAuthChanged = async (e: any) => {
+      const userDetail = e?.detail || null;
+      setUser(userDetail);
+      if (userDetail) {
+        const token = localStorage.getItem('access_token');
+        const isAdminNow = await checkAdminStatus(token || '');
+        setShowAdminSetup(!isAdminNow);
+      } else {
+        setIsAdmin(false);
+        setShowAdminSetup(false);
+        try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: false })); } catch (_) {}
+      }
+    };
+    window.addEventListener('authChanged', onAuthChanged as EventListener);
+    return () => window.removeEventListener('authChanged', onAuthChanged as EventListener);
+  }, []);
+
   const checkAdminStatus = async (accessToken: string) => {
-    try {
-      const response = await fetch(
-        `${API}/check-admin`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      const data = await response.json();
-      setIsAdmin(data.isAdmin || false);
-    } catch (error) {
-      console.error("Error checking admin status:", error);
+    // Consider any logged-in user (has access token) as admin for client-side UI
+    if (!accessToken) {
+      setIsAdmin(false);
+      return false;
     }
+
+    try {
+      // Try backend admin check when available, but fall back to treating token as admin
+      const response = await fetch(`${API}/check-admin/`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.isAdmin || true);
+        return data.isAdmin || true;
+      }
+    } catch (error) {
+      console.debug('Backend check-admin failed, treating logged-in user as admin', error);
+    }
+
+    setIsAdmin(true);
+    return true;
   };
 
   const handleSignOut = async () => {
     clearTokens();
+    setUser(null);
+    setIsAdmin(false);
+    setShowAdminSetup(false);
+    try { window.dispatchEvent(new CustomEvent('authChanged', { detail: null })); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: false })); } catch (_) {}
     navigate("/");
   };
 
@@ -94,7 +130,7 @@ export default function Root() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-white">
                     <User className="h-5 w-5 text-orange-400" />
-                    <span className="text-sm">{user.user_metadata?.name || user.email}</span>
+                    <span className="text-sm">{(user && (user.name || user.user_metadata?.name)) || user?.email}</span>
                   </div>
                   <Button
                     onClick={handleSignOut}
@@ -106,11 +142,12 @@ export default function Root() {
                   </Button>
                 </div>
               ) : (
-                <Link to="/register">
-                  <Button className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white">
-                    Admin Login
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => navigate('/register')}
+                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                >
+                  Admin Login
+                </Button>
               )}
             </nav>
           </div>
@@ -166,7 +203,7 @@ export default function Root() {
       </footer>
 
       {/* Admin Setup Helper */}
-      {showAdminSetup && <AdminSetup />}
+      {/* {showAdminSetup && !isAdmin && <AdminSetup />} */}
 
       {/* Welcome Guide */}
       {/* <WelcomeGuide /> */}

@@ -52,7 +52,7 @@ export function AdminSetup() {
         return;
       }
       for (const car of sampleCars) {
-        await fetch(`${API}/cars`, {
+        await fetch(`${API}/cars/`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : '' },
           body: JSON.stringify(car),

@@ -81,7 +81,7 @@ export default function Admin() {
     price: 0,
     mileage: "",
     fuelType: "Petrol",
-    imageUrl: "",
+    imageFile: null as File | null,
     condition: "Used",
     description: "",
     transmission: "Automatic",
@@ -111,25 +111,17 @@ export default function Admin() {
   }, []);
 
   const checkAdminAccess = async () => {
+    // For this app treat any logged-in user as admin for admin UI access.
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
         navigate('/register', { state: { redirectTo: '/admin' } });
         return;
       }
-      const response = await fetch(`${API}/check-admin`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await response.json();
-      
-      if (!data.isAdmin) {
-        toast.error("Access denied. Admin privileges required.");
-        navigate("/");
-        return;
-      }
-
       setIsAdmin(true);
-      loadAllData(token || "");
+      await loadAllData(token || "");
     } catch (error) {
-      console.error("Error checking admin access:", error);
+      console.error("Error during admin init:", error);
       navigate("/");
     } finally {
       setLoading(false);
@@ -139,7 +131,7 @@ export default function Admin() {
   const loadAllData = async (accessToken: string) => {
     try {
       // Load cars
-      const carsResponse = await fetch(`${API}/cars`);
+      const carsResponse = await fetch(`${API}/cars/`);
       const carsData = await carsResponse.json();
       setCars(carsData || []);
 
@@ -160,13 +152,21 @@ export default function Admin() {
   const handleAddCar = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API}/cars`, {
+      const form = new FormData();
+      form.append('name', newCar.name);
+      form.append('brand', newCar.brand);
+      form.append('model', newCar.model);
+      form.append('year', String(newCar.year));
+      form.append('price', String(newCar.price));
+      form.append('mileage', newCar.mileage || '');
+      form.append('fuel_type', newCar.fuelType || '');
+      form.append('condition', newCar.condition || 'Used');
+      if (newCar.imageFile) form.append('image', newCar.imageFile);
+
+      const response = await fetch(`${API}/cars/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-        body: JSON.stringify(newCar),
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+        body: form,
       });
 
       if (response.ok) {
@@ -181,7 +181,7 @@ export default function Admin() {
           price: 0,
           mileage: "",
           fuelType: "Petrol",
-          imageUrl: "",
+          imageFile: null,
           condition: "Used",
           description: "",
           transmission: "Automatic",
@@ -202,7 +202,7 @@ export default function Admin() {
 
     try {
         const token = localStorage.getItem('access_token');
-        const response = await fetch(`${API}/cars/${carId}`, {
+        const response = await fetch(`${API}/cars/${carId}/`, {
           method: "DELETE",
           headers: {
             Authorization: token ? `Bearer ${token}` : '',
@@ -626,13 +626,8 @@ export default function Admin() {
                           />
                         </div>
                         <div className="col-span-2 space-y-2">
-                          <Label className="text-white">Image URL</Label>
-                          <Input
-                            value={newCar.imageUrl}
-                            onChange={(e) => setNewCar({ ...newCar, imageUrl: e.target.value })}
-                            placeholder="https://..."
-                            className="bg-slate-700 border-slate-600 text-white"
-                          />
+                          <Label className="text-white">Image (upload)</Label>
+                          <input type="file" accept="image/*" onChange={(e) => setNewCar({ ...newCar, imageFile: e.target.files ? e.target.files[0] : null })} />
                         </div>
                         <div className="col-span-2 space-y-2">
                           <Label className="text-white">Description</Label>
@@ -669,7 +664,7 @@ export default function Admin() {
                       >
                         <div className="flex items-center gap-4">
                           <img
-                            src={car.imageUrl}
+                            src={(car as any).image || (car as any).imageUrl}
                             alt={car.name}
                             className="w-24 h-16 object-cover rounded"
                           />
