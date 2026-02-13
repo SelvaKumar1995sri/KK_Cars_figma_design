@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { projectId } from "/utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -34,16 +34,11 @@ export default function Contact() {
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/send-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ phoneNumber }),
-        }
-      );
+      const response = await fetch(`${API}/send-otp/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber }),
+      });
 
       if (response.ok) {
         setOtpSent(true);
@@ -68,21 +63,11 @@ export default function Contact() {
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/verify-otp-enquiry`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phoneNumber,
-            otp,
-            fullName,
-            message,
-          }),
-        }
-      );
+      const response = await fetch(`${API}/verify-otp-enquiry/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber, otp, fullName, message }),
+      });
 
       if (response.ok) {
         toast.success("Message sent successfully! We'll contact you soon.");

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -54,9 +54,7 @@ export default function CarDetails() {
   const loadCarDetails = async (carId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars`
-      );
+      const response = await fetch(`${API}/cars`);
       const data = await response.json();
       const foundCar = data.cars?.find((c: CarData) => c.id === carId);
       setCar(foundCar || null);
@@ -81,16 +79,11 @@ export default function CarDetails() {
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/send-otp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ phoneNumber }),
-        }
-      );
+      const response = await fetch(`${API}/send-otp/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber }),
+      });
 
       if (response.ok) {
         setOtpSent(true);
@@ -115,23 +108,18 @@ export default function CarDetails() {
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/verify-otp-enquiry`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phoneNumber,
-            otp,
-            fullName,
-            carId: car?.id,
-            carName: car?.name,
-            message: `Enquiry for ${car?.name}`,
-          }),
-        }
-      );
+      const response = await fetch(`${API}/verify-otp-enquiry/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber,
+          otp,
+          fullName,
+          carId: car?.id,
+          carName: car?.name,
+          message: `Enquiry for ${car?.name}`,
+        }),
+      });
 
       if (response.ok) {
         toast.success("Enquiry submitted successfully! We'll contact you soon.");

@@ -1,16 +1,12 @@
 import { Outlet, Link, useNavigate } from "react-router";
-import { createClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Car, LogOut, User, Shield, Phone } from "lucide-react";
 import { AdminSetup } from "../components/AdminSetup";
 import { WelcomeGuide } from "../components/WelcomeGuide";
+import { clearTokens } from "../utils/auth";
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 export default function Root() {
   const [user, setUser] = useState<any>(null);
@@ -19,41 +15,29 @@ export default function Root() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.access_token) {
-        checkAdminStatus(session.access_token);
+    // Check local JWT token and fetch current user
+    (async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      try {
+        const res = await fetch(`${API}/auth/me/`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const user = await res.json();
+          setUser(user);
+          setShowAdminSetup(true);
+          await checkAdminStatus(token);
+        }
+      } catch (err) {
+        console.error('Error fetching current user', err);
       }
-      // Show admin setup for logged in users
-      setShowAdminSetup(!!session?.user);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.access_token) {
-        checkAdminStatus(session.access_token);
-      } else {
-        setIsAdmin(false);
-      }
-      setShowAdminSetup(!!session?.user);
-    });
-
-    return () => subscription.unsubscribe();
+    })();
   }, []);
 
   const checkAdminStatus = async (accessToken: string) => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/check-admin`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+        `${API}/check-admin`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const data = await response.json();
       setIsAdmin(data.isAdmin || false);
@@ -63,7 +47,7 @@ export default function Root() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    clearTokens();
     navigate("/");
   };
 

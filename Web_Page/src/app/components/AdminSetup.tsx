@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -8,10 +7,6 @@ import { Shield, Database, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { sampleCars, sampleTestimonials, sampleSales } from "../utils/sampleData";
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 export function AdminSetup() {
   const [loading, setLoading] = useState(false);
@@ -20,26 +15,18 @@ export function AdminSetup() {
   const handleSetupAdmin = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
         toast.error("Please sign in first");
         setLoading(false);
         return;
       }
 
-      // Set current user as admin
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/set-admin`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({ userId: session.user.id }),
-        }
-      );
+      // Set current user as admin (backend derives user from token)
+      const response = await fetch(`${API}/set-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
 
       if (response.ok) {
         toast.success("You are now an admin! Refresh the page to access admin features.");
@@ -58,57 +45,36 @@ export function AdminSetup() {
   const handleLoadSampleData = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
         toast.error("Please sign in first");
         setLoading(false);
         return;
       }
-
-      // Add sample cars
       for (const car of sampleCars) {
-        await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify(car),
-          }
-        );
+        await fetch(`${API}/cars`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify(car),
+        });
       }
 
       // Add sample testimonials
       for (const testimonial of sampleTestimonials) {
-        await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/testimonials`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify(testimonial),
-          }
-        );
+        await fetch(`${API}/testimonials`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify(testimonial),
+        });
       }
 
       // Add sample sales
       for (const sale of sampleSales) {
-        await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/sales`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify(sale),
-          }
-        );
+        await fetch(`${API}/sales`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : '' },
+          body: JSON.stringify(sale),
+        });
       }
 
       toast.success("Sample data loaded successfully! Refresh the page.");

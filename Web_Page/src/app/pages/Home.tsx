@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { createClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -9,10 +8,6 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Car, Gauge, Fuel, Calendar, Star, ArrowRight, Shield, Award, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
 
 interface CarData {
   id: string;
@@ -49,11 +44,9 @@ export default function Home() {
 
   const loadCars = async () => {
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars`
-      );
+      const response = await fetch(`${API}/cars`);
       const data = await response.json();
-      setCars(data.cars || []);
+      setCars(data || []);
     } catch (error) {
       console.error("Error loading cars:", error);
     }
@@ -61,11 +54,9 @@ export default function Home() {
 
   const loadTestimonials = async () => {
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/testimonials`
-      );
+      const response = await fetch(`${API}/testimonials`);
       const data = await response.json();
-      setTestimonials(data.testimonials || []);
+      setTestimonials(data || []);
     } catch (error) {
       console.error("Error loading testimonials:", error);
     }

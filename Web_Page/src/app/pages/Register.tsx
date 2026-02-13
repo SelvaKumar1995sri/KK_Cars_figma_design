@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { createClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import { register, login, setTokens, getCurrentUser } from "../../app/utils/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -10,10 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
+// Note: Using backend JWT auth; third-party OAuth via Supabase is not configured here.
 
 export default function Register() {
   const navigate = useNavigate();
@@ -34,8 +30,8 @@ export default function Register() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
       const redirectTo = (location.state as any)?.redirectTo || "/";
       navigate(redirectTo);
     }
@@ -46,38 +42,17 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // First, create the user via the server
-      const serverResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/signup`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify(signUpData),
-        }
-      );
-
-      const serverData = await serverResponse.json();
-
-      if (!serverResponse.ok) {
-        toast.error(serverData.error || "Failed to create account");
+      // Register via Django backend
+      const result = await register(signUpData.email, signUpData.password, signUpData.name);
+      if (result?.error) {
+        toast.error(result.error || 'Failed to create account');
         setLoading(false);
         return;
       }
-
-      // Then sign in the user
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: signUpData.email,
-        password: signUpData.password,
-      });
-
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success("Account created successfully!");
-        const redirectTo = (location.state as any)?.redirectTo || "/";
+      if (result?.access) {
+        setTokens(result.access, result.refresh);
+        toast.success('Account created successfully!');
+        const redirectTo = (location.state as any)?.redirectTo || '/';
         navigate(redirectTo);
       }
     } catch (error) {
@@ -93,17 +68,16 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: signInData.email,
-        password: signInData.password,
-      });
-
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success("Signed in successfully!");
-        const redirectTo = (location.state as any)?.redirectTo || "/";
+      const tokenResult = await login(signInData.email, signInData.password);
+      if (tokenResult?.detail) {
+        toast.error(tokenResult.detail || 'Failed to sign in');
+      } else if (tokenResult?.access) {
+        setTokens(tokenResult.access, tokenResult.refresh);
+        toast.success('Signed in successfully!');
+        const redirectTo = (location.state as any)?.redirectTo || '/';
         navigate(redirectTo);
+      } else {
+        toast.error('Failed to sign in');
       }
     } catch (error) {
       console.error("Sign in error:", error);
@@ -115,24 +89,7 @@ export default function Register() {
 
   const handleGoogleSignIn = async () => {
     try {
-      // Do not forget to complete setup at https://supabase.com/docs/guides/auth/social-login/auth-google
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-
-      if (error) {
-        toast.error(error.message);
-        // Show additional help if it's a provider not enabled error
-        if (error.message.includes('provider')) {
-          toast.error(
-            'Please complete Google OAuth setup in Supabase. Visit: https://supabase.com/docs/guides/auth/social-login/auth-google',
-            { duration: 8000 }
-          );
-        }
-      }
+      toast.error('Google sign-in is not available in this backend configuration.');
     } catch (error) {
       console.error("Google sign in error:", error);
       toast.error("Failed to sign in with Google");

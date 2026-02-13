@@ -1,14 +1,13 @@
-import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { API } from "./apiConfig";
 
 export async function setUserAsAdmin(userId: string) {
   try {
     const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/set-admin`,
+      `${API}/set-admin`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${publicAnonKey}`,
         },
         body: JSON.stringify({ userId }),
       }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { createClient } from "@supabase/supabase-js";
-import { projectId, publicAnonKey } from "../../../utils/supabase/info";
+import { API } from "../utils/apiConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -19,10 +18,7 @@ import {
 import { toast } from "sonner";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
+
 
 interface CarData {
   id: string;
@@ -116,22 +112,12 @@ export default function Admin() {
 
   const checkAdminAccess = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        navigate("/register");
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        navigate('/register', { state: { redirectTo: '/admin' } });
         return;
       }
-
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/check-admin`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      
+      const response = await fetch(`${API}/check-admin`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       
       if (!data.isAdmin) {
@@ -141,7 +127,7 @@ export default function Admin() {
       }
 
       setIsAdmin(true);
-      loadAllData(session.access_token);
+      loadAllData(token || "");
     } catch (error) {
       console.error("Error checking admin access:", error);
       navigate("/");
@@ -153,35 +139,19 @@ export default function Admin() {
   const loadAllData = async (accessToken: string) => {
     try {
       // Load cars
-      const carsResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars`
-      );
+      const carsResponse = await fetch(`${API}/cars`);
       const carsData = await carsResponse.json();
-      setCars(carsData.cars || []);
+      setCars(carsData || []);
 
       // Load enquiries
-      const enquiriesResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/enquiries`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const enquiriesResponse = await fetch(`${API}/enquiries`, { headers: { Authorization: `Bearer ${accessToken}` } });
       const enquiriesData = await enquiriesResponse.json();
-      setEnquiries(enquiriesData.enquiries || []);
+      setEnquiries(enquiriesData || []);
 
       // Load sales
-      const salesResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/sales`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const salesResponse = await fetch(`${API}/sales`, { headers: { Authorization: `Bearer ${accessToken}` } });
       const salesData = await salesResponse.json();
-      setSales(salesData.sales || []);
+      setSales(salesData || []);
     } catch (error) {
       console.error("Error loading data:", error);
     }
@@ -189,24 +159,20 @@ export default function Admin() {
 
   const handleAddCar = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify(newCar),
-        }
-      );
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API}/cars`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(newCar),
+      });
 
       if (response.ok) {
         toast.success("Car added successfully!");
         setNewCarOpen(false);
-        loadAllData(session?.access_token || "");
+        loadAllData(token || "");
         setNewCar({
           name: "",
           brand: "",
@@ -235,21 +201,17 @@ export default function Admin() {
     if (!confirm("Are you sure you want to delete this car?")) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/cars/${carId}`,
-        {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API}/cars/${carId}`, {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${session?.access_token}`,
+            Authorization: token ? `Bearer ${token}` : '',
           },
-        }
-      );
+        });
 
       if (response.ok) {
         toast.success("Car deleted successfully!");
-        loadAllData(session?.access_token || "");
+          loadAllData(token || "");
       } else {
         toast.error("Failed to delete car");
       }
@@ -261,23 +223,19 @@ export default function Admin() {
 
   const handleUpdateEnquiryStatus = async (enquiryId: string, status: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/enquiries/${enquiryId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API}/enquiries/${enquiryId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ status }),
+      });
 
       if (response.ok) {
         toast.success("Enquiry status updated!");
-        loadAllData(session?.access_token || "");
+        loadAllData(token || "");
       } else {
         toast.error("Failed to update status");
       }
@@ -289,19 +247,15 @@ export default function Admin() {
 
   const handleAddTestimonial = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/testimonials`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify(newTestimonial),
-        }
-      );
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API}/testimonials`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(newTestimonial),
+      });
 
       if (response.ok) {
         toast.success("Testimonial added successfully!");
@@ -325,24 +279,20 @@ export default function Admin() {
 
   const handleAddSale = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-d0c59136/sales`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify(newSale),
-        }
-      );
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API}/sales`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(newSale),
+      });
 
       if (response.ok) {
         toast.success("Sale record added successfully!");
         setNewSaleOpen(false);
-        loadAllData(session?.access_token || "");
+        loadAllData(token || "");
         setNewSale({
           carBrand: "",
           carName: "",
