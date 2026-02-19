@@ -4,3 +4,5 @@ djangorestframework-simplejwt>=5.2
 django-cors-headers>=4.0
 python-dotenv>=1.0.0
 mysqlclient>=2.1.0  # remove if you use sqlite
+requests>=2.25.0
+vonage>=3.0.0

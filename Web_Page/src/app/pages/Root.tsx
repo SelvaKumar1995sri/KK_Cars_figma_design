@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Car, LogOut, User, Shield, Phone } from "lucide-react";
 import { AdminSetup } from "../components/AdminSetup";
+import ScrollToTop from "../components/ScrollToTop";
 
 export default function Root() {
   const [user, setUser] = useState<any>(null);
@@ -89,6 +90,7 @@ export default function Root() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <ScrollToTop />
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-sm border-b border-orange-600/30 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
@@ -99,7 +101,7 @@ export default function Root() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Sri kk cars</h1>
-                <p className="text-xs text-orange-400">Buy & Sell All Brands Cars</p>
+                <p className="text-xs text-orange-400">Buy & Sell Multi-Brand Pre Owned Cars</p>
               </div>
             </Link>
 
@@ -183,7 +185,7 @@ export default function Root() {
             <div>
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                <li>Phone: (555) 123-4567</li>
+                <li>Phone: 9962701160</li>
                 <li>Email: info@srikkk.com</li>
                 <li>Hours: Mon-Sat 9AM-8PM</li>
               </ul>
@@ -191,8 +193,9 @@ export default function Root() {
             <div>
               <h4 className="text-white font-semibold mb-4">Location</h4>
               <p className="text-gray-400 text-sm">
-                123 Auto Boulevard<br />
-                Car City, AC 12345
+                No. 75/2, 200 Feet Radial Road,<br />
+                Kovilambakkam
+                Chennai - 600 129
               </p>
             </div>
           </div>

@@ -115,7 +115,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Phone</h3>
-                    <p className="text-gray-400">(555) 123-4567</p>
+                    <p className="text-gray-400">9962701160</p>
                   </div>
                 </div>
 
@@ -135,9 +135,10 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold mb-1">Location</h3>
-                    <p className="text-gray-400">
-                      123 Auto Boulevard<br />
-                      Car City, AC 12345
+                    <p className="text-gray-400 text-sm">
+                      No. 75/2, 200 Feet Radial Road,<br />
+                      Kovilambakkam
+                      Chennai - 600 129
                     </p>
                   </div>
                 </div>
@@ -239,7 +240,7 @@ export default function Contact() {
                         setOtp("");
                       }}
                       variant="outline"
-                      className="flex-1 border-slate-600 text-white hover:bg-slate-700"
+                      className="flex-1 border-slate-600 text-black hover:bg-slate-700"
                     >
                       Back
                     </Button>
