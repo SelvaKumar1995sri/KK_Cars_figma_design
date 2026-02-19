@@ -11,6 +11,7 @@ from .views import (
     set_admin,
     send_otp,
     verify_otp_enquiry,
+    login_user,
 )
 
 router = DefaultRouter()
@@ -21,6 +22,7 @@ router.register(r'testimonials', TestimonialViewSet, basename='testimonials')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/login/', login_user, name='token_obtain_pair'),
     path('auth/register/', register_user, name='auth-register'),
     path('auth/me/', current_user, name='auth-me'),
     path('check-admin/', check_admin, name='check-admin'),

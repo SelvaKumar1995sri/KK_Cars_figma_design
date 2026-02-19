@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Car, Enquiry, Sale, Testimonial
-from .serializers import CarSerializer, EnquirySerializer, SaleSerializer, TestimonialSerializer
+from .models import Car, Enquiry, Sale, Testimonial, CarImage
+from .serializers import CarSerializer, EnquirySerializer, SaleSerializer, TestimonialSerializer, CarImageSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,12 +10,49 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework import serializers as drf_serializers
 from django.utils import timezone
+
+# ── MUST be declared before any class that uses it ──
+UserModel = get_user_model()
 
 # Simple in-memory OTP store for demo
 OTP_STORE = {}
 
-UserModel = get_user_model()
+
+class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'email'
+
+    def validate(self, attrs):
+        email = attrs.get('email') or attrs.get('username', '')
+        password = attrs.get('password', '')
+
+        if not email or not password:
+            raise drf_serializers.ValidationError('Email and password are required.')
+
+        try:
+            user = UserModel.objects.get(email=email)
+        except UserModel.DoesNotExist:
+            raise drf_serializers.ValidationError('No account found with this email.')
+
+        if not user.check_password(password):
+            raise drf_serializers.ValidationError('Incorrect password.')
+
+        if not user.is_active:
+            raise drf_serializers.ValidationError('User account is disabled.')
+
+        refresh = RefreshToken.for_user(user)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
+
 
 class CarViewSet(viewsets.ModelViewSet):
     queryset = Car.objects.all().order_by('-created_at')
@@ -24,16 +61,17 @@ class CarViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
 
     def perform_destroy(self, instance):
-        # delete associated image file if exists
         try:
             if instance.image:
                 instance.image.delete(save=False)
+            for car_image in instance.additional_images.all():
+                car_image.image.delete(save=False)
+                car_image.delete()
         except Exception:
             pass
         instance.delete()
 
     def perform_update(self, serializer):
-        # If updating image, remove old file
         instance = self.get_object()
         old_image = instance.image
         new_image = self.request.FILES.get('image')
@@ -43,6 +81,30 @@ class CarViewSet(viewsets.ModelViewSet):
                 old_image.delete(save=False)
         except Exception:
             pass
+
+    def create(self, request, *args, **kwargs):
+        additional_images = request.FILES.getlist('additional_images')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        car = serializer.save()
+        for image_file in additional_images:
+            CarImage.objects.create(car=car, image=image_file)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        additional_images = request.FILES.getlist('additional_images')
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        car = serializer.save()
+        if additional_images:
+            car.additional_images.all().delete()
+            for image_file in additional_images:
+                CarImage.objects.create(car=car, image=image_file)
+        return Response(serializer.data)
+
 
 class EnquiryViewSet(viewsets.ModelViewSet):
     queryset = Enquiry.objects.all().order_by('-created_at')
@@ -59,10 +121,12 @@ class EnquiryViewSet(viewsets.ModelViewSet):
             return Response({'status': 'updated'})
         return Response({'error': 'status required'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.all().order_by('-created_at')
     serializer_class = SaleSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
 
 class TestimonialViewSet(viewsets.ModelViewSet):
     queryset = Testimonial.objects.all().order_by('-created_at')
@@ -161,3 +225,39 @@ def verify_otp_enquiry(request):
     except Exception:
         pass
     return Response({'ok': True, 'enquiryId': enquiry.id})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_user(request):
+    email = request.data.get('username', '').strip()
+    password = request.data.get('password', '')
+
+    if not email or not password:
+        return Response(
+            {'detail': 'Email and password are required.'},  # changed key to 'detail'
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        user = UserModel.objects.get(email=email)
+    except UserModel.DoesNotExist:
+        return Response(
+            {'detail': 'No account found with this email.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if not user.check_password(password):
+        return Response(
+            {'detail': 'Incorrect password.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if not user.is_active:
+        return Response(
+            {'detail': 'User account is disabled.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })

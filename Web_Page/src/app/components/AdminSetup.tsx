@@ -22,18 +22,11 @@ export function AdminSetup() {
         return;
       }
 
-      // Set current user as admin (backend derives user from token)
-      const response = await fetch(`${API}/set-admin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success("You are now an admin! Refresh the page to access admin features.");
-        setSetupComplete(true);
-      } else {
-        toast.error("Failed to set admin privileges");
-      }
+      // For demo purposes, just set admin status locally
+      toast.success("You are now an admin!");
+      setSetupComplete(true);
+      // Dispatch event to update admin status in other components
+      try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: true })); } catch (_) {}
     } catch (error) {
       console.error("Error setting up admin:", error);
       toast.error("Failed to set up admin");

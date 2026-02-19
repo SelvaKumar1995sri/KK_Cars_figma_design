@@ -82,6 +82,7 @@ export default function Admin() {
     mileage: "",
     fuelType: "Petrol",
     imageFile: null as File | null,
+    additionalImages: [] as File[],
     condition: "Used",
     description: "",
     transmission: "Automatic",
@@ -162,6 +163,11 @@ export default function Admin() {
       form.append('fuel_type', newCar.fuelType || '');
       form.append('condition', newCar.condition || 'Used');
       if (newCar.imageFile) form.append('image', newCar.imageFile);
+      
+      // Add additional images
+      newCar.additionalImages.forEach((file, index) => {
+        form.append('additional_images', file);
+      });
 
       const response = await fetch(`${API}/cars/`, {
         method: "POST",
@@ -182,6 +188,7 @@ export default function Admin() {
           mileage: "",
           fuelType: "Petrol",
           imageFile: null,
+          additionalImages: [],
           condition: "Used",
           description: "",
           transmission: "Automatic",
@@ -626,8 +633,20 @@ export default function Admin() {
                           />
                         </div>
                         <div className="col-span-2 space-y-2">
-                          <Label className="text-white">Image (upload)</Label>
+                          <Label className="text-white">Main Image (upload)</Label>
                           <input type="file" accept="image/*" onChange={(e) => setNewCar({ ...newCar, imageFile: e.target.files ? e.target.files[0] : null })} />
+                        </div>
+                        <div className="col-span-2 space-y-2">
+                          <Label className="text-white">Additional Images (upload multiple)</Label>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            multiple 
+                            onChange={(e) => setNewCar({ ...newCar, additionalImages: Array.from(e.target.files || []) })} 
+                          />
+                          {newCar.additionalImages.length > 0 && (
+                            <p className="text-sm text-gray-400">{newCar.additionalImages.length} image(s) selected</p>
+                          )}
                         </div>
                         <div className="col-span-2 space-y-2">
                           <Label className="text-white">Description</Label>

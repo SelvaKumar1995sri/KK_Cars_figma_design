@@ -20,6 +20,14 @@ class Car(models.Model):
     def __str__(self):
         return f"{self.brand} {self.name} ({self.year})"
 
+class CarImage(models.Model):
+    car = models.ForeignKey(Car, related_name='additional_images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='cars/', blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for {self.car.name}"
+
 class Enquiry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     car = models.ForeignKey(Car, on_delete=models.SET_NULL, null=True, blank=True)

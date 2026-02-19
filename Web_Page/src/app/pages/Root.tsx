@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Car, LogOut, User, Shield, Phone } from "lucide-react";
 import { AdminSetup } from "../components/AdminSetup";
-import { WelcomeGuide } from "../components/WelcomeGuide";
-import { clearTokens } from "../utils/auth";
-
 
 export default function Root() {
   const [user, setUser] = useState<any>(null);
@@ -15,75 +12,78 @@ export default function Root() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check local JWT token and fetch current user
+    // On mount: restore session from stored token
     (async () => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
       if (!token) return;
+
       try {
-        const res = await fetch(`${API}/auth/me/`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const user = await res.json();
-          setUser(user);
-          const isAdminNow = await checkAdminStatus(token);
-          // Show admin setup only for non-admin users so admins don't see the quick setup
-          setShowAdminSetup(!isAdminNow);
-          try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: isAdminNow })); } catch (_) {}
+        // Fetch user info
+        const userRes = await fetch(`${API}/auth/me/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!userRes.ok) {
+          // Token invalid/expired — clear it
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          return;
+        }
+
+        const userData = await userRes.json();
+        setUser(userData);
+
+        // Check admin status
+        const adminRes = await fetch(`${API}/check-admin/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (adminRes.ok) {
+          const adminData = await adminRes.json();
+          setIsAdmin(!!adminData.isAdmin);
+          try {
+            window.dispatchEvent(new CustomEvent("adminChanged", { detail: !!adminData.isAdmin }));
+          } catch (_) {}
         }
       } catch (err) {
-        console.error('Error fetching current user', err);
+        console.error("Error restoring session:", err);
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
       }
     })();
   }, []);
 
-  // Listen for auth changes (login/logout) from other components
+  // Listen for login/logout events dispatched by Register.tsx or sign out
   useEffect(() => {
     const onAuthChanged = async (e: any) => {
-      const userDetail = e?.detail || null;
-      setUser(userDetail);
-      if (userDetail) {
-        const token = localStorage.getItem('access_token');
-        const isAdminNow = await checkAdminStatus(token || '');
-        setShowAdminSetup(!isAdminNow);
-      } else {
+      const userData = e?.detail || null;
+      setUser(userData);
+      if (!userData) {
         setIsAdmin(false);
         setShowAdminSetup(false);
-        try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: false })); } catch (_) {}
+        try { window.dispatchEvent(new CustomEvent("adminChanged", { detail: false })); } catch (_) {}
       }
     };
-    window.addEventListener('authChanged', onAuthChanged as EventListener);
-    return () => window.removeEventListener('authChanged', onAuthChanged as EventListener);
+    window.addEventListener("authChanged", onAuthChanged as EventListener);
+    return () => window.removeEventListener("authChanged", onAuthChanged as EventListener);
   }, []);
 
-  const checkAdminStatus = async (accessToken: string) => {
-    // Consider any logged-in user (has access token) as admin for client-side UI
-    if (!accessToken) {
-      setIsAdmin(false);
-      return false;
-    }
+  // Listen for admin status changes
+  useEffect(() => {
+    const onAdminChanged = (e: any) => {
+      setIsAdmin(!!e.detail);
+    };
+    window.addEventListener("adminChanged", onAdminChanged as EventListener);
+    return () => window.removeEventListener("adminChanged", onAdminChanged as EventListener);
+  }, []);
 
-    try {
-      // Try backend admin check when available, but fall back to treating token as admin
-      const response = await fetch(`${API}/check-admin/`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (response.ok) {
-        const data = await response.json();
-        setIsAdmin(data.isAdmin || true);
-        return data.isAdmin || true;
-      }
-    } catch (error) {
-      console.debug('Backend check-admin failed, treating logged-in user as admin', error);
-    }
-
-    setIsAdmin(true);
-    return true;
-  };
-
-  const handleSignOut = async () => {
-    clearTokens();
+  const handleSignOut = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     setUser(null);
     setIsAdmin(false);
     setShowAdminSetup(false);
-    try { window.dispatchEvent(new CustomEvent('authChanged', { detail: null })); } catch (_) {}
-    try { window.dispatchEvent(new CustomEvent('adminChanged', { detail: false })); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent("authChanged", { detail: null })); } catch (_) {}
+    try { window.dispatchEvent(new CustomEvent("adminChanged", { detail: false })); } catch (_) {}
     navigate("/");
   };
 
@@ -109,14 +109,14 @@ export default function Root() {
                   Home
                 </Button>
               </Link>
-              
+
               <Link to="/contact">
                 <Button variant="ghost" className="text-white hover:text-orange-400 gap-2">
                   <Phone className="h-4 w-4" />
                   Contact Us
                 </Button>
               </Link>
-              
+
               {isAdmin && (
                 <Link to="/admin">
                   <Button variant="ghost" className="text-white hover:text-orange-400 gap-2">
@@ -130,7 +130,7 @@ export default function Root() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-white">
                     <User className="h-5 w-5 text-orange-400" />
-                    <span className="text-sm">{(user && (user.name || user.user_metadata?.name)) || user?.email}</span>
+                    <span className="text-sm">{user.name || user.email}</span>
                   </div>
                   <Button
                     onClick={handleSignOut}
@@ -143,7 +143,7 @@ export default function Root() {
                 </div>
               ) : (
                 <Button
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate("/register")}
                   className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
                 >
                   Admin Login
@@ -202,11 +202,7 @@ export default function Root() {
         </div>
       </footer>
 
-      {/* Admin Setup Helper */}
-      {/* {showAdminSetup && !isAdmin && <AdminSetup />} */}
-
-      {/* Welcome Guide */}
-      {/* <WelcomeGuide /> */}
+      {showAdminSetup && <AdminSetup />}
     </div>
   );
 }

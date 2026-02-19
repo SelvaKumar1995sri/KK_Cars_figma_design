@@ -31,6 +31,11 @@ interface CarData {
   transmission?: string;
   color?: string;
   features?: string[];
+  additional_images?: Array<{
+    id: string;
+    image: string;
+    image_url: string;
+  }>;
 }
 
 export default function CarDetails() {
@@ -54,13 +59,17 @@ export default function CarDetails() {
   const loadCarDetails = async (carId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API}/cars/`);
-      const data = await response.json();
-      const foundCar = data.cars?.find((c: CarData) => c.id === carId);
-      setCar(foundCar || null);
+      const response = await fetch(`${API}/cars/${carId}/`);
+      if (response.ok) {
+        const carData = await response.json();
+        setCar(carData);
+      } else {
+        setCar(null);
+      }
     } catch (error) {
       console.error("Error loading car details:", error);
       toast.error("Failed to load car details");
+      setCar(null);
     } finally {
       setLoading(false);
     }
@@ -186,6 +195,25 @@ export default function CarDetails() {
                 </Badge>
               </div>
             </div>
+            
+            {/* Additional Images */}
+            {car.additional_images && car.additional_images.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {car.additional_images.map((img, index) => (
+                  <div key={img.id} className="relative rounded-lg overflow-hidden">
+                    <ImageWithFallback
+                      src={img.image_url || img.image}
+                      alt={`${car.name} - Image ${index + 1}`}
+                      className="w-full h-20 object-cover cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => {
+                        // You could implement a lightbox here
+                        console.log('Image clicked:', img);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Details Section */}

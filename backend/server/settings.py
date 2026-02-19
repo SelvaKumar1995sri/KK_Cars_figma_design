@@ -109,7 +109,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # CORS
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')
-CORS_ALLOWED_ORIGINS = [o.strip() for o in cors_origins.split(',') if o.strip()]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 # REST Framework + JWT
 REST_FRAMEWORK = {

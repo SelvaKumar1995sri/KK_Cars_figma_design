@@ -61,21 +61,14 @@ export default function Home() {
   useEffect(() => {
     loadCars();
     loadTestimonials();
-    // check admin status for showing admin controls
     (async () => {
       const token = localStorage.getItem('access_token');
-      console.debug('[Home] access_token present:', !!token);
       if (!token) return;
       try {
-        console.debug('[Home] calling check-admin/');
         const res = await fetch(`${API}/check-admin/`, { headers: { Authorization: `Bearer ${token}` } });
-        console.debug('[Home] check-admin status', res.status);
         if (res.ok) {
           const d = await res.json();
-          console.debug('[Home] check-admin response', d);
           setIsAdminLocal(!!d.isAdmin);
-        } else {
-          try { const text = await res.text(); console.debug('[Home] check-admin body', text); } catch(_){}
         }
       } catch (err) {
         console.error('Error checking admin status', err);
@@ -235,7 +228,7 @@ export default function Home() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"></div>
         </div>
-        
+
         <div className="relative z-10 container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -250,11 +243,11 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-xl text-gray-300 mb-8">
-              Quality selection of vehicles from all brands. 
+              Quality selection of vehicles from all brands.
               Your trusted partner for buying and selling cars.
             </p>
             <div className="flex gap-4">
-              <Button 
+              <Button
                 size="lg"
                 className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white px-8"
                 onClick={() => document.getElementById('inventory')?.scrollIntoView({ behavior: 'smooth' })}
@@ -263,7 +256,7 @@ export default function Home() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Link to="/contact">
-                <Button 
+                <Button
                   size="lg"
                   variant="outline"
                   className="border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-white px-8"
@@ -273,6 +266,185 @@ export default function Home() {
               </Link>
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      
+
+      {/* Inventory Section */}
+      <section id="inventory" className="py-20">
+        <div className="container mx-auto px-4">
+
+          {/* Admin: Add Car Dialog trigger */}
+          {isAdminLocal && (
+            <div className="flex justify-end mb-6">
+              <Dialog open={newCarOpen} onOpenChange={setNewCarOpen}>
+                <DialogTrigger asChild>
+                  {/* <Button className="bg-gradient-to-r from-orange-500 to-red-600 text-white">Add Car</Button> */}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Car</DialogTitle>
+                    <DialogDescription>Fill in the vehicle details</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-2">
+                    <Label>Name</Label>
+                    <Input value={newCar.name} onChange={(e) => setNewCar({ ...newCar, name: e.target.value })} />
+                    <Label>Brand</Label>
+                    <Input value={newCar.brand} onChange={(e) => setNewCar({ ...newCar, brand: e.target.value })} />
+                    <Label>Model</Label>
+                    <Input value={newCar.model} onChange={(e) => setNewCar({ ...newCar, model: e.target.value })} />
+                    <Label>Year</Label>
+                    <Input type="number" value={newCar.year} onChange={(e) => setNewCar({ ...newCar, year: Number(e.target.value) })} />
+                    <Label>Price</Label>
+                    <Input type="number" value={newCar.price} onChange={(e) => setNewCar({ ...newCar, price: Number(e.target.value) })} />
+                    <Label>Image (upload)</Label>
+                    <input type="file" accept="image/*" onChange={(e) => setNewCar({ ...newCar, imageFile: e.target.files ? e.target.files[0] : null })} />
+                    <div className="flex gap-2 mt-4">
+                      <Button onClick={handleAddCar} disabled={adding} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                        {adding ? 'Adding...' : 'Add Car'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setNewCarOpen(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+
+          {/* Admin: Edit Car Dialog */}
+          {isAdminLocal && editingCar && (
+            <Dialog open={editCarOpen} onOpenChange={setEditCarOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Car</DialogTitle>
+                  <DialogDescription>Update vehicle details</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2">
+                  <Label>Name</Label>
+                  <Input value={editingCar?.name || ''} onChange={(e) => setEditingCar({ ...editingCar, name: e.target.value })} />
+                  <Label>Brand</Label>
+                  <Input value={editingCar?.brand || ''} onChange={(e) => setEditingCar({ ...editingCar, brand: e.target.value })} />
+                  <Label>Model</Label>
+                  <Input value={editingCar?.model || ''} onChange={(e) => setEditingCar({ ...editingCar, model: e.target.value })} />
+                  <Label>Year</Label>
+                  <Input type="number" value={editingCar?.year || ''} onChange={(e) => setEditingCar({ ...editingCar, year: Number(e.target.value) })} />
+                  <Label>Price</Label>
+                  <Input type="number" value={editingCar?.price || 0} onChange={(e) => setEditingCar({ ...editingCar, price: Number(e.target.value) })} />
+                  <Label>Image (upload to replace)</Label>
+                  <input type="file" accept="image/*" onChange={(e) => setEditingCar({ ...editingCar, imageFile: e.target.files ? e.target.files[0] : null })} />
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={handleEditCar} disabled={editing} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                      {editing ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setEditCarOpen(false); setEditingCar(null); }}>Cancel</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Cars: Empty state OR Grid */}
+          {cars.length === 0 ? (
+            <div className="text-center py-20">
+              <h2 className="text-4xl font-bold text-white mb-4">Featured Vehicles</h2>
+              <p className="text-gray-400 text-lg mb-8">Browse our collection of quality vehicles</p>
+              <Car className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-semibold text-white mb-2">No Vehicles Available</h3>
+              <p className="text-gray-400">Check back soon for new arrivals!</p>
+              {isAdminLocal && (
+                <div className="mt-6">
+                  <Button onClick={() => navigate('/admin')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                    Add Car
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {cars.map((car, index) => (
+                  <motion.div
+                    key={car.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-600/50 transition-all duration-300 overflow-hidden group cursor-pointer">
+                      <div className="relative h-56 overflow-hidden">
+                        <ImageWithFallback
+                          src={(car as any).image || (car as any).imageUrl}
+                          alt={car.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute top-4 right-4">
+                          <Badge className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
+                            {car.condition}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardHeader>
+                        <CardTitle className="text-white text-xl">{car.name}</CardTitle>
+                        <CardDescription className="text-gray-400">
+                          {car.brand} {car.model} • {car.year}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          <div className="flex items-center gap-2 text-gray-400 text-sm">
+                            <Gauge className="h-4 w-4 text-orange-400" />
+                            <span>{car.mileage}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-400 text-sm">
+                            <Fuel className="h-4 w-4 text-orange-400" />
+                            <span>{car.fuelType}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-400 text-sm">
+                            <Calendar className="h-4 w-4 text-orange-400" />
+                            <span>{car.year}</span>
+                          </div>
+                        </div>
+                        <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">
+                          ${car.price.toLocaleString()}
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <div className="w-full flex gap-2">
+                          <Button
+                            onClick={() => navigate(`/car/${car.id}`)}
+                            className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                          >
+                            View Details
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                          {isAdminLocal && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => openEditDialog(car)}
+                                variant="outline"
+                                className="border-yellow-600 text-yellow-400 hover:bg-yellow-600 hover:text-white"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteCar(car.id)}
+                                variant="outline"
+                                className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -324,207 +496,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Inventory Section */}
-      <section id="inventory" className="py-20">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Featured Vehicles
-            </h2>
-            <p className="text-gray-400 text-lg">
-              Browse our collection of quality vehicles
-            </p>
-          </motion.div>
-
-          {isAdminLocal && (
-            <div className="flex justify-end mb-6">
-              <Dialog open={newCarOpen} onOpenChange={setNewCarOpen}>
-                <DialogTrigger asChild>
-                  {/* <Button className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                    Add Car
-                  </Button> */}
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Car</DialogTitle>
-                    <DialogDescription>Fill in the vehicle details</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-2">
-                    <Label>Name</Label>
-                    <Input value={newCar.name} onChange={(e) => setNewCar({ ...newCar, name: e.target.value })} />
-
-                    <Label>Brand</Label>
-                    <Input value={newCar.brand} onChange={(e) => setNewCar({ ...newCar, brand: e.target.value })} />
-
-                    <Label>Model</Label>
-                    <Input value={newCar.model} onChange={(e) => setNewCar({ ...newCar, model: e.target.value })} />
-
-                    <Label>Year</Label>
-                    <Input type="number" value={newCar.year} onChange={(e) => setNewCar({ ...newCar, year: Number(e.target.value) })} />
-
-                    <Label>Price</Label>
-                    <Input type="number" value={newCar.price} onChange={(e) => setNewCar({ ...newCar, price: Number(e.target.value) })} />
-
-                    <Label>Image (upload)</Label>
-                    <input type="file" accept="image/*" onChange={(e) => setNewCar({ ...newCar, imageFile: e.target.files ? e.target.files[0] : null })} />
-
-                    <div className="flex gap-2 mt-4">
-                      <Button onClick={handleAddCar} disabled={adding} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                        {adding ? 'Adding...' : 'Add Car'}
-                      </Button>
-                      <Button variant="outline" onClick={() => setNewCarOpen(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
-
-          {isAdminLocal && editingCar && (
-            <Dialog open={editCarOpen} onOpenChange={setEditCarOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Edit Car</DialogTitle>
-                  <DialogDescription>Update vehicle details</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2">
-                  <Label>Name</Label>
-                  <Input value={editingCar?.name || ''} onChange={(e) => setEditingCar({ ...editingCar, name: e.target.value })} />
-
-                  <Label>Brand</Label>
-                  <Input value={editingCar?.brand || ''} onChange={(e) => setEditingCar({ ...editingCar, brand: e.target.value })} />
-
-                  <Label>Model</Label>
-                  <Input value={editingCar?.model || ''} onChange={(e) => setEditingCar({ ...editingCar, model: e.target.value })} />
-
-                  <Label>Year</Label>
-                  <Input type="number" value={editingCar?.year || ''} onChange={(e) => setEditingCar({ ...editingCar, year: Number(e.target.value) })} />
-
-                  <Label>Price</Label>
-                  <Input type="number" value={editingCar?.price || 0} onChange={(e) => setEditingCar({ ...editingCar, price: Number(e.target.value) })} />
-
-                  <Label>Image (upload to replace)</Label>
-                  <input type="file" accept="image/*" onChange={(e) => setEditingCar({ ...editingCar, imageFile: e.target.files ? e.target.files[0] : null })} />
-
-                  <div className="flex gap-2 mt-4">
-                    <Button onClick={handleEditCar} disabled={editing} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                      {editing ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setEditCarOpen(false); setEditingCar(null); }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-
-          {cars.length === 0 ? (
-            <div className="text-center py-20">
-              <Car className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold text-white mb-2">No Vehicles Available</h3>
-              <p className="text-gray-400">Check back soon for new arrivals!</p>
-                {isAdminLocal && (
-                  <div className="mt-6">
-                    <Button onClick={() => navigate('/admin')} className="bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                      Add Car
-                    </Button>
-                  </div>
-                )}
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {cars.map((car, index) => (
-                <motion.div
-                  key={car.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-600/50 transition-all duration-300 overflow-hidden group cursor-pointer">
-                    <div className="relative h-56 overflow-hidden">
-                      <ImageWithFallback
-                        src={(car as any).image || (car as any).imageUrl}
-                        alt={car.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute top-4 right-4">
-                        <Badge className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0">
-                          {car.condition}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="text-white text-xl">{car.name}</CardTitle>
-                      <CardDescription className="text-gray-400">
-                        {car.brand} {car.model} • {car.year}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-3 mb-4">
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                          <Gauge className="h-4 w-4 text-orange-400" />
-                          <span>{car.mileage}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                          <Fuel className="h-4 w-4 text-orange-400" />
-                          <span>{car.fuelType}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                          <Calendar className="h-4 w-4 text-orange-400" />
-                          <span>{car.year}</span>
-                        </div>
-                      </div>
-                      <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">
-                        ${car.price.toLocaleString()}
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <div className="w-full flex gap-2">
-                        <Button
-                          onClick={() => navigate(`/car/${car.id}`)}
-                          className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
-                        >
-                          View Details
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                        {isAdminLocal && (
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => openEditDialog(car)}
-                              variant="outline"
-                              className="border-yellow-600 text-yellow-400 hover:bg-yellow-600 hover:text-white"
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              onClick={() => handleDeleteCar(car.id)}
-                              variant="outline"
-                              className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Testimonials Section */}
       {testimonials.length > 0 && (
         <section className="py-20 bg-slate-800/30">
@@ -535,12 +506,8 @@ export default function Home() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-4xl font-bold text-white mb-4">
-                Happy Customers
-              </h2>
-              <p className="text-gray-400 text-lg">
-                See what our satisfied customers have to say
-              </p>
+              <h2 className="text-4xl font-bold text-white mb-4">Happy Customers</h2>
+              <p className="text-gray-400 text-lg">See what our satisfied customers have to say</p>
             </motion.div>
 
             <div className="grid md:grid-cols-3 gap-8">
@@ -561,21 +528,13 @@ export default function Home() {
                           className="w-16 h-16 rounded-full object-cover"
                         />
                         <div className="flex-1">
-                          <CardTitle className="text-white text-lg">
-                            {testimonial.customerName}
-                          </CardTitle>
-                          <CardDescription className="text-gray-400 text-sm">
-                            {testimonial.carPurchased}
-                          </CardDescription>
+                          <CardTitle className="text-white text-lg">{testimonial.customerName}</CardTitle>
+                          <CardDescription className="text-gray-400 text-sm">{testimonial.carPurchased}</CardDescription>
                           <div className="flex gap-1 mt-2">
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
                                 key={i}
-                                className={`h-4 w-4 ${
-                                  i < testimonial.rating
-                                    ? "fill-orange-400 text-orange-400"
-                                    : "text-gray-600"
-                                }`}
+                                className={`h-4 w-4 ${i < testimonial.rating ? "fill-orange-400 text-orange-400" : "text-gray-600"}`}
                               />
                             ))}
                           </div>
@@ -583,9 +542,7 @@ export default function Home() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-gray-300 italic">
-                        "{testimonial.feedback}"
-                      </p>
+                      <p className="text-gray-300 italic">"{testimonial.feedback}"</p>
                       <p className="text-gray-500 text-sm mt-4">
                         Purchased: {new Date(testimonial.purchaseDate).toLocaleDateString()}
                       </p>
@@ -607,18 +564,13 @@ export default function Home() {
             viewport={{ once: true }}
             className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl p-12 text-center"
           >
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Ready to Find Your Perfect Car?
-            </h2>
+            <h2 className="text-4xl font-bold text-white mb-4">Ready to Find Your Perfect Car?</h2>
             <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
               Join thousands of satisfied customers who found their dream vehicle with Sri kk cars.
               Contact us today!
             </p>
             <Link to="/contact">
-              <Button
-                size="lg"
-                className="bg-white text-orange-600 hover:bg-gray-100 px-8"
-              >
+              <Button size="lg" className="bg-white text-orange-600 hover:bg-gray-100 px-8">
                 Contact Us Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
