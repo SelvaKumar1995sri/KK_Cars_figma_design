@@ -488,21 +488,21 @@ export default function Admin() {
         {/* Tabs for Management */}
         <Tabs defaultValue="cars" className="space-y-6">
           <TabsList className="bg-slate-800 border border-slate-700">
-            <TabsTrigger value="cars" className="data-[state=active]:bg-orange-600">
+            <TabsTrigger value="cars" className="data-[state=active]:bg-orange-600 text-white">
               <Package className="h-4 w-4 mr-2" />
               Manage Cars
             </TabsTrigger>
-            <TabsTrigger value="enquiries" className="data-[state=active]:bg-orange-600">
+            <TabsTrigger value="enquiries" className="data-[state=active]:bg-orange-600 text-white">
               <Bell className="h-4 w-4 mr-2" />
               Enquiries {pendingEnquiries > 0 && (
                 <Badge className="ml-2 bg-red-600">{pendingEnquiries}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="sales" className="data-[state=active]:bg-orange-600">
+            <TabsTrigger value="sales" className="data-[state=active]:bg-orange-600 text-white">
               <ShoppingCart className="h-4 w-4 mr-2" />
               Sales Records
             </TabsTrigger>
-            <TabsTrigger value="testimonials" className="data-[state=active]:bg-orange-600">
+            <TabsTrigger value="testimonials" className="data-[state=active]:bg-orange-600 text-white">
               <MessageSquare className="h-4 w-4 mr-2" />
               Testimonials
             </TabsTrigger>
