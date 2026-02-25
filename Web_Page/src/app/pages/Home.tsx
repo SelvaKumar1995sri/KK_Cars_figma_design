@@ -32,7 +32,7 @@ interface Testimonial {
   carPurchased: string;
   rating: number;
   feedback: string;
-  imageUrl: string;
+  image: string;
   purchaseDate: string;
 }
 
@@ -520,13 +520,20 @@ export default function Home() {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card className="bg-slate-800/50 border-slate-700 h-full">
+                    {testimonial.image && (
+                      <div className="w-full h-64 overflow-hidden rounded-t-lg flex items-center justify-center bg-gray-800">
+                        <ImageWithFallback
+                          src={testimonial.image}
+                          alt={`${testimonial.customerName} testimonial`}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                    )}
                     <CardHeader>
                       <div className="flex items-start gap-4">
-                        <ImageWithFallback
-                          src={testimonial.imageUrl}
-                          alt={testimonial.customerName}
-                          className="w-16 h-16 rounded-full object-cover"
-                        />
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-lg">
+                          {(testimonial.customerName || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
                         <div className="flex-1">
                           <CardTitle className="text-white text-lg">{testimonial.customerName}</CardTitle>
                           <CardDescription className="text-gray-400 text-sm">{testimonial.carPurchased}</CardDescription>
@@ -544,7 +551,7 @@ export default function Home() {
                     <CardContent>
                       <p className="text-gray-300 italic">"{testimonial.feedback}"</p>
                       <p className="text-gray-500 text-sm mt-4">
-                        Purchased: {new Date(testimonial.purchaseDate).toLocaleDateString()}
+                        Purchased: {testimonial.purchaseDate ? new Date(testimonial.purchaseDate).toLocaleDateString() : 'N/A'}
                       </p>
                     </CardContent>
                   </Card>

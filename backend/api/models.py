@@ -60,7 +60,7 @@ class Testimonial(models.Model):
     car_purchased = models.CharField(max_length=200, blank=True)
     rating = models.PositiveSmallIntegerField(default=5)
     feedback = models.TextField(blank=True)
-    image_url = models.URLField(blank=True)
+    image = models.ImageField(upload_to='testimonials/', blank=True, null=True)
     purchase_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
