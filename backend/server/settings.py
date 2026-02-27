@@ -67,16 +67,26 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # Database
 DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite')
 if DB_ENGINE.lower() in ('mysql', 'django.db.backends.mysql'):
+    # DATABASES = {
+    #         'default': {
+    #             'ENGINE': 'django.db.backends.mysql',
+    #             'NAME': 'kk_cars',
+    #             'USER': 'root',
+    #             'PASSWORD': '',
+    #             'HOST': '127.0.0.1',
+    #             'PORT': '3306',
+    #         }
+    #     }
     DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.mysql',
-                'NAME': 'kk_cars',
-                'USER': 'root',
-                'PASSWORD': '',
-                'HOST': '127.0.0.1',
-                'PORT': '3306',
-            }
-        }
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT'),
+    }
+}
 else:
     DATABASES = {
         'default': {
